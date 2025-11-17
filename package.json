@@ -15,10 +15,13 @@
     "main": "index.js",
     "scripts": {
         "build": "rollup -c",
+        "build:m3-max": "cross-env NODE_OPTIONS=--max-old-space-size=65536 BUILD_TYPE=release rollup -c",
         "watch": "rollup -c -w",
         "serve": "serve dist -C",
+        "serve:m3-max": "npm run build:m3-max && serve dist -C",
         "develop": "cross-env BUILD_TYPE=debug concurrently --kill-others \"npm run watch\" \"npm run serve\"",
         "develop:auto-launch": "concurrently --kill-others \"xdg-open 'http://localhost:3000/'\" \"npm run watch\" \"npm run serve\"",
+        "vision-pro:pipeline": "node ./tools/vision-pro-pipeline.mjs",
         "lint": "eslint src"
     },
     "devDependencies": {

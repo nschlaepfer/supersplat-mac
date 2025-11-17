@@ -6,6 +6,7 @@ import { EditHistory } from './edit-history';
 import { registerEditorEvents } from './editor';
 import { Events } from './events';
 import { initFileHandler } from './file-handler';
+import { getHardwarePreset } from './hardware-presets';
 import { registerPlySequenceEvents } from './ply-sequence';
 import { registerPublishEvents } from './publish';
 import { registerRenderEvents } from './render';
@@ -114,22 +115,26 @@ const main = async () => {
     // editor ui
     const editorUI = new EditorUI(events);
 
-    // create the graphics device
-    const graphicsDevice = await createGraphicsDevice(editorUI.canvas, {
-        deviceTypes: ['webgl2'],
-        antialias: false,
-        depth: false,
-        stencil: false,
-        xrCompatible: false,
-        powerPreference: 'high-performance'
-    });
+    const preset = getHardwarePreset();
+    console.log(`[SuperSplat] Hardware preset: ${preset.description}`);
 
     const overrides = [
+        preset.overrides,
         getURLArgs()
     ];
 
     // resolve scene config
     const sceneConfig = getSceneConfig(overrides);
+
+    // create the graphics device
+    const graphicsDevice = await createGraphicsDevice(editorUI.canvas, {
+        deviceTypes: ['webgl2'],
+        antialias: sceneConfig.camera.multisample,
+        depth: false,
+        stencil: false,
+        xrCompatible: sceneConfig.camera.xrCompatible,
+        powerPreference: sceneConfig.camera.powerPreference
+    });
 
     // construct the manager
     const scene = new Scene(

@@ -50,6 +50,16 @@ To initialize a local development environment for SuperSplat, ensure you have [N
 
 When changes to the source are detected, SuperSplat is rebuilt automatically. Simply refresh your browser to see your changes.
 
+### Apple M3 Max + Vision Pro workflow
+
+This fork assumes an Apple Silicon M3 Max (128 GB) workstation and a Vision Pro (visionOS 2.6) for on-device validation. Use the dedicated scripts when working in this branch:
+
+- `npm run build:m3-max` – release build with additional memory headroom and tuned render defaults.
+- `npm run serve:m3-max` – rebuild and serve the high-performance build locally.
+- `npm run vision-pro:pipeline` – package the current build into `vision-pro/out/` for AirDrop or HTTPS hosting on the headset.
+
+The end-to-end workflow (hardware preset details, pipeline output, and sideload steps) is documented in [`docs/m3-max-vision-pro.md`](docs/m3-max-vision-pro.md).
+
 ## Contributors
 
 SuperSplat is made possible by our amazing open source community:

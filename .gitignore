@@ -1,5 +1,6 @@
 node_modules
 dist
+vision-pro/out
 .DS_Store
 .npmrc
 .vscode

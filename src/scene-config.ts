@@ -19,7 +19,9 @@ const sceneConfig = {
         toneMapping: 'linear',
         debugRender: '',
         overlay: true,
-        highPrecision: true
+        highPrecision: true,
+        xrCompatible: false,
+        powerPreference: 'high-performance'
     },
     show: {
         grid: true,
