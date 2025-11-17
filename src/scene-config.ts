@@ -21,7 +21,7 @@ const sceneConfig = {
         overlay: true,
         highPrecision: true,
         xrCompatible: false,
-        powerPreference: 'high-performance'
+        powerPreference: 'high-performance' as const
     },
     show: {
         grid: true,
