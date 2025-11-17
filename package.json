@@ -22,6 +22,8 @@
         "develop": "cross-env BUILD_TYPE=debug concurrently --kill-others \"npm run watch\" \"npm run serve\"",
         "develop:auto-launch": "concurrently --kill-others \"xdg-open 'http://localhost:3000/'\" \"npm run watch\" \"npm run serve\"",
         "vision-pro:pipeline": "node ./tools/vision-pro-pipeline.mjs",
+        "electron:start": "npm run build:m3-max && electron ./electron/main.cjs",
+        "electron:pack": "npm run build:m3-max && electron-builder --mac --arm64",
         "lint": "eslint src"
     },
     "devDependencies": {
@@ -42,6 +44,8 @@
         "concurrently": "9.2.1",
         "cors": "2.8.5",
         "cross-env": "10.1.0",
+        "electron": "33.2.1",
+        "electron-builder": "25.1.7",
         "eslint": "9.39.1",
         "eslint-import-resolver-typescript": "4.4.4",
         "globals": "16.5.0",

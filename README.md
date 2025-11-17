@@ -8,9 +8,9 @@
 
 | [SuperSplat Editor](https://superspl.at/editor) | [User Guide](https://developer.playcanvas.com/user-manual/gaussian-splatting/editing/supersplat/) | [Blog](https://blog.playcanvas.com) | [Forum](https://forum.playcanvas.com) |
 
-SuperSplat is a free and open source tool for inspecting, editing, optimizing and publishing 3D Gaussian Splats. It is built on web technologies and runs in the browser, so there's nothing to download or install.
+SuperSplat is a free and open source tool for inspecting, editing, optimizing and publishing 3D Gaussian Splats. This fork focuses exclusively on high‑end Apple Silicon workstations (M3 Max/Ultra class) so we can prototype on-device generative splats and MPS-accelerated workflows before handing scenes off to a Vision Pro running visionOS 2.6.
 
-A live version of this tool is available at: https://superspl.at/editor
+A live version of the upstream tool is available at: https://superspl.at/editor
 
 ![image](https://github.com/user-attachments/assets/b6cbb5cc-d3cc-4385-8c71-ab2807fd4fba)
 
@@ -52,13 +52,22 @@ When changes to the source are detected, SuperSplat is rebuilt automatically. Si
 
 ### Apple M3 Max + Vision Pro workflow
 
-This fork assumes an Apple Silicon M3 Max (128 GB) workstation and a Vision Pro (visionOS 2.6) for on-device validation. Use the dedicated scripts when working in this branch:
+This fork assumes an Apple Silicon M3 Max (128 GB) workstation and a Vision Pro (visionOS 2.6) for on-device validation while we experiment with future generative/MPS pipelines. Use the dedicated scripts when working in this branch:
 
 - `npm run build:m3-max` – release build with additional memory headroom and tuned render defaults.
 - `npm run serve:m3-max` – rebuild and serve the high-performance build locally.
 - `npm run vision-pro:pipeline` – package the current build into `vision-pro/out/` for AirDrop or HTTPS hosting on the headset.
 
 The end-to-end workflow (hardware preset details, pipeline output, and sideload steps) is documented in [`docs/m3-max-vision-pro.md`](docs/m3-max-vision-pro.md).
+
+### macOS Electron build
+
+Prefer a desktop app shell for tight iteration on M3 Max hardware? Use the bundled Electron tooling:
+
+1. `npm run electron:start` – builds `dist/` with the M3 preset and launches Electron pointing at the local files (unset `ELECTRON_RUN_AS_NODE` so Electron can render windows). Export `ELECTRON_DEVTOOLS=true` if you always want DevTools docked.
+2. `npm run electron:pack` – rebuilds and creates a signed (but not notarized) `.dmg` under `release/mac/` targeting Apple Silicon. Drag the resulting `SuperSplat Vision Pro.app` into `/Applications` on your Mac.
+
+The Electron wrapper automatically appends `preset=apple-m3-max`, exposes `docs/` and `samples/` in the menu bar, and shares the same optimized `dist/` output you’d push to a Vision Pro build, so desktop validation mirrors headset behavior.
 
 ## Contributors
 

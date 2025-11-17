@@ -50,3 +50,14 @@ npm run vision-pro:pipeline -- --skip-build
 4. For networked streaming, host `vision-pro/out/app` with HTTPS on your Mac (`npx serve app -C --ssl-cert <cert> --ssl-key <key>`) and hit the LAN URL from Safari on visionOS 2.6.
 
 This mirrors the workflow we intend to automate later with Xcode/RealityKit; today it keeps iteration times short while still validating on the real hardware.
+
+## macOS desktop shell
+
+Prefer a desktop app experience for quick edits? Use the Electron wrapper included in this fork:
+
+```sh
+npm run electron:start    # build and launch the app window locally
+npm run electron:pack     # produce SuperSplat Vision Pro.dmg in release/mac/
+```
+
+The pack step uses `electron-builder` (arm64 target) so you can copy the `.app` into `/Applications` on your M3 Max. Since the payload is the exact same `dist/` output, anything that looks good here will look identical once pushed to the Vision Pro pipeline.

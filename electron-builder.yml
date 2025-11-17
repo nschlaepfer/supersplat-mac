@@ -1,0 +1,19 @@
+appId: com.supersplat.visionpro
+productName: SuperSplat Vision Pro
+copyright: "(c) 2025"
+directories:
+  output: release/mac
+files:
+  - dist/**/*
+  - electron/main.cjs
+  - docs/**/*
+  - samples/**/*
+  - package.json
+asar: false
+extraMetadata:
+  main: electron/main.cjs
+mac:
+  target:
+    - dmg
+  category: public.app-category.graphics-design
+  hardenedRuntime: false
