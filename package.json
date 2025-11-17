@@ -24,6 +24,8 @@
         "vision-pro:pipeline": "node ./tools/vision-pro-pipeline.mjs",
         "electron:start": "npm run build:m3-max && electron ./electron/main.cjs",
         "electron:pack": "npm run build:m3-max && electron-builder --mac --arm64",
+        "copilot:server": "node ./copilot/server.mjs",
+        "copilot:test": "node ./scripts/test-copilot.mjs",
         "lint": "eslint src"
     },
     "devDependencies": {
@@ -43,6 +45,7 @@
         "autoprefixer": "10.4.22",
         "concurrently": "9.2.1",
         "cors": "2.8.5",
+        "express": "4.21.1",
         "cross-env": "10.1.0",
         "electron": "33.2.1",
         "electron-builder": "25.1.7",

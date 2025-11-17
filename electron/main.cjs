@@ -1,10 +1,36 @@
 const path = require('path');
+const { spawn } = require('node:child_process');
 const { app, BrowserWindow, Menu, shell } = require('electron');
 
 const isDevtoolsEnabled = process.env.ELECTRON_DEVTOOLS === 'true';
 const APP_TITLE = 'SuperSplat Vision Pro';
 
 const getContentRoot = () => app.isPackaged ? process.resourcesPath : path.resolve(__dirname, '..');
+
+let copilotProcess = null;
+
+const startCopilotServer = () => {
+    if (copilotProcess) {
+        return;
+    }
+
+    const serverPath = path.join(getContentRoot(), 'copilot', 'server.mjs');
+    copilotProcess = spawn(process.execPath, [serverPath], {
+        env: {
+            ...process.env,
+            ELECTRON_RUN_AS_NODE: '1'
+        },
+        stdio: 'ignore',
+        detached: false
+    });
+
+    copilotProcess.on('exit', (code) => {
+        if (code !== 0) {
+            console.warn('Copilot server exited with code', code);
+        }
+        copilotProcess = null;
+    });
+};
 
 const createMenu = () => {
     const template = [
@@ -95,6 +121,7 @@ const createWindow = () => {
 app.name = APP_TITLE;
 
 app.whenReady().then(() => {
+    startCopilotServer();
     createMenu();
     createWindow();
 
@@ -108,5 +135,12 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
+    }
+});
+
+app.on('quit', () => {
+    if (copilotProcess) {
+        copilotProcess.kill();
+        copilotProcess = null;
     }
 });

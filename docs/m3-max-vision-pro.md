@@ -60,4 +60,21 @@ npm run electron:start    # build and launch the app window locally
 npm run electron:pack     # produce SuperSplat Vision Pro.dmg in release/mac/
 ```
 
-The pack step uses `electron-builder` (arm64 target) so you can copy the `.app` into `/Applications` on your M3 Max. Since the payload is the exact same `dist/` output, anything that looks good here will look identical once pushed to the Vision Pro pipeline.
+The pack step uses `electron-builder` (arm64 target) so you can copy the `.app` into `/Applications` on your M3 Max. Since the payload is the exact same `dist/` output, anything that looks good here will look identical once pushed to the Vision Pro pipeline. The Electron bundle also includes the Copilot proxy server, so the AI assistant works even without running `npm run copilot:server` separately.
+
+## On-device AI copilot (Ollama)
+
+For voice/text-guided workflows or scripted transformations, wire up a local LLM through [Ollama](https://ollama.com):
+
+1. Install and launch Ollama (`brew install ollama && ollama serve`) or secure an OpenAI API key for GPT-4o / GPT-5-Codex access.
+2. Pull a model (`ollama pull qwen2.5-coder:7b`) or note the OpenAI model id you want to target (`gpt-4o`, `gpt-5.1-codex`, etc.).
+3. Run the proxy server: `npm run copilot:server` (env: `OLLAMA_URL`, `COPILOT_PORT`, `OPENAI_BASE_URL`, `COPILOT_ALLOW_ORIGIN`).
+4. Open SuperSplat and click **AI Copilot** → **Settings**:
+   - Pick *Local (Ollama)* or *OpenAI*, paste your API key (stored locally), and select a model from the live list.
+   - Decide which tools the assistant may invoke (event firing vs. purely descriptive responses).
+   - For OpenAI you can attach live viewport screenshots + splat summaries so GPT-4o/GPT-5 can reason over the scene.
+5. Ask questions, request edits, or let the copilot trigger events such as `tool.rectSelection`, `camera.focus`, and `select.all`.
+
+Everything stays on-device for the local route. When using OpenAI the proxy only forwards your prompts/screenshots from the same machine.
+
+To sanity-check the pipeline, run `COPILOT_TEST_MODEL="llama3.1:8b" npm run copilot:test`. The script spawns the proxy, hits the health/models endpoints, and executes a sample chat call.

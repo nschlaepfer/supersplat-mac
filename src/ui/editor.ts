@@ -10,6 +10,7 @@ import { ImageSettingsDialog } from './image-settings-dialog';
 import { localize, localizeInit } from './localization';
 import { Menu } from './menu';
 import { ModeToggle } from './mode-toggle';
+import { CopilotPanel } from './copilot-panel';
 import logo from './playcanvas-logo.png';
 import { Popup, ShowOptions } from './popup';
 import { Progress } from './progress';
@@ -162,6 +163,10 @@ class EditorUI {
         editorContainer.append(mainContainer);
 
         tooltips.register(cursorLabel, localize('cursor.click-to-copy'), 'top');
+
+        const copilotPanel = new CopilotPanel(events, canvas);
+        canvasContainer.append(copilotPanel);
+        copilotPanel.attachLauncher(canvasContainer.dom);
 
         // message popup
         const popup = new Popup(tooltips);

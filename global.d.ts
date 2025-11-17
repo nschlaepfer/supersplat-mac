@@ -12,3 +12,7 @@ declare module '*.scss' {
     const value: any;
     export default value;
 }
+
+declare interface Window {
+    __SUPERSPLAT_COPILOT_URL?: string;
+}

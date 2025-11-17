@@ -29,6 +29,7 @@ import { SphereSelection } from './tools/sphere-selection';
 import { ToolManager } from './tools/tool-manager';
 import { registerTransformHandlerEvents } from './transform-handler';
 import { EditorUI } from './ui/editor';
+import { TutorialOverlay } from './ui/tutorial';
 
 declare global {
     interface LaunchParams {
@@ -102,6 +103,23 @@ const initShortcuts = (events: Events) => {
     return shortcuts;
 };
 
+const DEFAULT_SAMPLE = {
+    filename: 'dragon.compressed.ply',
+    path: 'static/samples/dragon.compressed.ply'
+};
+
+const loadDefaultSample = async (events: Events) => {
+    try {
+        const url = new URL(DEFAULT_SAMPLE.path, window.location.href).toString();
+        await events.invoke('import', [{
+            filename: DEFAULT_SAMPLE.filename,
+            url
+        }]);
+    } catch (err) {
+        console.warn('Failed to load default sample', err);
+    }
+};
+
 const main = async () => {
     // root events object
     const events = new Events();
@@ -114,6 +132,9 @@ const main = async () => {
 
     // editor ui
     const editorUI = new EditorUI(events);
+
+    const tutorialOverlay = new TutorialOverlay();
+    tutorialOverlay.showIfNeeded();
 
     const preset = getHardwarePreset();
     console.log(`[SuperSplat] Hardware preset: ${preset.description}`);
@@ -265,12 +286,16 @@ const main = async () => {
 
     // handle load params
     const loadList = url.searchParams.getAll('load');
-    for (const value of loadList) {
-        const decoded = decodeURIComponent(value);
-        await events.invoke('import', [{
-            filename: decoded.split('/').pop(),
-            url: decoded
-        }]);
+    if (loadList.length > 0) {
+        for (const value of loadList) {
+            const decoded = decodeURIComponent(value);
+            await events.invoke('import', [{
+                filename: decoded.split('/').pop(),
+                url: decoded
+            }]);
+        }
+    } else {
+        await loadDefaultSample(events);
     }
 
     // handle OS-based file association in PWA mode
