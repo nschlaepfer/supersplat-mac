@@ -35,6 +35,7 @@ Outputs land under `vision-pro/out/`:
 - `app/` – ready-to-host static build (serve over HTTPS for Safari on Vision Pro).
 - `supersplat-vision-pro.zip` – AirDrop this archive to the Vision Pro Files app and open `index.html` in Safari.
 - `vision-os-manifest.json` – quick metadata for the hand-off or transport tooling.
+- `previews/` – auto-generated `thumbnail.png`, `turntable.gif`, and `metadata.json` so you can preview builds without opening them.
 
 Pass `--skip-build` if you already ran `npm run build:m3-max` and just want to repackage:
 
@@ -45,7 +46,7 @@ npm run vision-pro:pipeline -- --skip-build
 ### Recommended test flow
 
 1. Run the pipeline to refresh `vision-pro/out/`.
-2. AirDrop the zip to your Vision Pro (Files app).
+2. AirDrop the zip to your Vision Pro (Files app). For the smallest payload, toggle **Extra compression** (Brotli/Gzip) in the export dialog before running the pipeline.
 3. Decompress, open `index.html` in Safari, and grant the app access to Local Files.
 4. For networked streaming, host `vision-pro/out/app` with HTTPS on your Mac (`npx serve app -C --ssl-cert <cert> --ssl-key <key>`) and hit the LAN URL from Safari on visionOS 2.6.
 
@@ -71,9 +72,9 @@ For voice/text-guided workflows or scripted transformations, wire up a local LLM
 3. Run the proxy server: `npm run copilot:server` (env: `OLLAMA_URL`, `COPILOT_PORT`, `OPENAI_BASE_URL`, `COPILOT_ALLOW_ORIGIN`).
 4. Open SuperSplat and click **AI Copilot** → **Settings**:
    - Pick *Local (Ollama)* or *OpenAI*, paste your API key (stored locally), and select a model from the live list.
-   - Decide which tools the assistant may invoke (event firing vs. purely descriptive responses).
-   - For OpenAI you can attach live viewport screenshots + splat summaries so GPT-4o/GPT-5 can reason over the scene.
-5. Ask questions, request edits, or let the copilot trigger events such as `tool.rectSelection`, `camera.focus`, and `select.all`.
+   - Choose which tools the assistant may invoke (`fireEvent`, `explainStep`, `saveMacro`, `runMacro`).
+   - For OpenAI you can attach live viewport screenshots + detailed splat summaries so GPT-4o/GPT-5 can reason over the scene.
+5. Ask questions, request edits, store macros (“denoise → crop → publish”), or let the copilot trigger events such as `tool.rectSelection`, `camera.focus`, and `select.all`.
 
 Everything stays on-device for the local route. When using OpenAI the proxy only forwards your prompts/screenshots from the same machine.
 

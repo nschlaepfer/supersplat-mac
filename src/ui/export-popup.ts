@@ -193,6 +193,28 @@ class ExportPopup extends Container {
         compressRow.append(compressLabel);
         compressRow.append(compressBoolean);
 
+        const losslessRow = new Container({
+            class: 'row'
+        });
+
+        const losslessLabel = new Label({
+            class: 'label',
+            text: localize('export.extra-compression')
+        });
+
+        const losslessSelect = new SelectInput({
+            class: 'select',
+            defaultValue: 'none',
+            options: [
+                { v: 'none', t: localize('export.extra-compression.none') },
+                { v: 'brotli', t: localize('export.extra-compression.brotli') },
+                { v: 'gzip', t: localize('export.extra-compression.gzip') }
+            ]
+        });
+
+        losslessRow.append(losslessLabel);
+        losslessRow.append(losslessSelect);
+
         // splats
 
         const splatsRow = new Container({
@@ -263,6 +285,7 @@ class ExportPopup extends Container {
         content.append(colorRow);
         content.append(fovRow);
         content.append(compressRow);
+        content.append(losslessRow);
         content.append(splatsRow);
         content.append(bandsRow);
         content.append(filenameRow);
@@ -403,11 +426,13 @@ class ExportPopup extends Container {
             this.dom.focus();
 
             const assemblePlyOptions = () : SceneExportOptions => {
+                const losslessMode = losslessSelect.value === 'none' ? undefined : losslessSelect.value;
                 return {
                     filename: filenameEntry.value,
                     splatIdx: splatsSelect.value === 'all' ? 'all' : splatsSelect.value,
                     serializeSettings: {
-                        maxSHBands: bandsSlider.value
+                        maxSHBands: bandsSlider.value,
+                        losslessCompression: losslessMode
                     },
                     compressedPly: compressBoolean.value
                 };

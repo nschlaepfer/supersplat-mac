@@ -20,6 +20,7 @@ type SerializeSettings = {
     selected?: boolean;             // only export selected gaussians. used for copy/paste
     minOpacity?: number;            // filter out gaussians with alpha less than or equal to minAlpha
     removeInvalid?: boolean;        // filter out gaussians with invalid data (NaN/Infinity)
+    losslessCompression?: 'none' | 'brotli' | 'gzip';
 
     // the following options are used when serializing the PLY for document save
     // and are only supported by serializePly

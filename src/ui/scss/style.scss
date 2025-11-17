@@ -371,6 +371,32 @@ body {
     align-self: flex-start;
 }
 
+.copilot-macros-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.copilot-macros-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.copilot-macro-row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.copilot-macro-label {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
 .copilot-provider,
 .copilot-model-select {
     width: 100%;

@@ -30,6 +30,7 @@ import { ToolManager } from './tools/tool-manager';
 import { registerTransformHandlerEvents } from './transform-handler';
 import { EditorUI } from './ui/editor';
 import { TutorialOverlay } from './ui/tutorial';
+import { initPreviewBridge, markPreviewReady } from './preview-bridge';
 
 declare global {
     interface LaunchParams {
@@ -283,6 +284,7 @@ const main = async () => {
 
     // load async models
     scene.start();
+    initPreviewBridge(scene, editorUI.canvas, events);
 
     // handle load params
     const loadList = url.searchParams.getAll('load');
@@ -294,8 +296,10 @@ const main = async () => {
                 url: decoded
             }]);
         }
+        markPreviewReady();
     } else {
         await loadDefaultSample(events);
+        markPreviewReady();
     }
 
     // handle OS-based file association in PWA mode

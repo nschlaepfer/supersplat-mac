@@ -44,6 +44,46 @@ const TOOL_LIBRARY = {
                 required: ['message']
             }
         }
+    },
+    saveMacro: {
+        type: 'function',
+        function: {
+            name: 'saveMacro',
+            description: 'Store a reusable macro composed of editor events.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string' },
+                    steps: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                event: { type: 'string' },
+                                payload: { type: 'object' },
+                                delayMs: { type: 'number' }
+                            },
+                            required: ['event']
+                        }
+                    }
+                },
+                required: ['name', 'steps']
+            }
+        }
+    },
+    runMacro: {
+        type: 'function',
+        function: {
+            name: 'runMacro',
+            description: 'Execute a previously saved macro on the user\'s scene.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string' }
+                },
+                required: ['name']
+            }
+        }
     }
 };
 
@@ -83,6 +123,21 @@ const buildTools = (toolset) => {
     return keys.map(key => TOOL_LIBRARY[key]).filter(Boolean);
 };
 
+const buildContextBlocks = (context = {}) => {
+    const blocks = [];
+    if (context.sceneSummary) {
+        blocks.push({ label: 'Scene summary', body: context.sceneSummary });
+    }
+    if (context.macros?.length) {
+        const macroText = context.macros.map((macro, index) => `${index + 1}. ${macro.name} (${macro.steps} steps)`).join('\n');
+        blocks.push({ label: 'Saved macros', body: macroText });
+    }
+    if (context.recentActions?.length) {
+        blocks.push({ label: 'Recent actions', body: context.recentActions.join('\n') });
+    }
+    return blocks;
+};
+
 const convertMessagesForOpenAi = (messages, context) => {
     const converted = messages.map(msg => {
         if (Array.isArray(msg.content)) {
@@ -108,12 +163,13 @@ const convertMessagesForOpenAi = (messages, context) => {
         }
     }
 
-    if (context?.sceneSummary) {
+    const blocks = buildContextBlocks(context);
+    blocks.forEach((block) => {
         converted.push({
             role: 'user',
-            content: [{ type: 'text', text: `Scene summary:\n${context.sceneSummary}` }]
+            content: [{ type: 'text', text: `${block.label}:\n${block.body}` }]
         });
-    }
+    });
 
     return converted;
 };
@@ -159,6 +215,8 @@ app.post('/copilot/chat', async (req, res) => {
     const tools = buildTools(toolset);
 
     try {
+        const contextBlocks = buildContextBlocks(context);
+
         if (provider === 'openai') {
             const apiKey = req.headers['x-openai-key'] || req.body.openaiKey || process.env.OPENAI_API_KEY;
             if (!apiKey) {
@@ -187,7 +245,8 @@ app.post('/copilot/chat', async (req, res) => {
                 tools,
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
-                    ...messages
+                    ...messages,
+                    ...contextBlocks.map((block) => ({ role: 'system', content: `${block.label}:\n${block.body}` }))
                 ]
             };
 

@@ -6,6 +6,7 @@ import { Events } from './events';
 import { AssetSource } from './loaders/asset-source';
 import { Scene } from './scene';
 import { DownloadWriter, FileStreamWriter } from './serialize/writer';
+import { wrapWithLosslessCompression } from './serialize/lossless-writer';
 import { Splat } from './splat';
 import { serializePly, serializePlyCompressed, SerializeSettings, serializeSplat, serializeViewer, ViewerExportSettings } from './splat-serialize';
 import { localize } from './ui/localization';
@@ -549,29 +550,33 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             const { filename, splatIdx, serializeSettings, viewerExportSettings } = options;
 
             const writer = stream ? new FileStreamWriter(stream) : new DownloadWriter(filename);
+            const compressionMode = serializeSettings.losslessCompression && serializeSettings.losslessCompression !== 'none'
+                ? serializeSettings.losslessCompression
+                : undefined;
+            const activeWriter = compressionMode ? wrapWithLosslessCompression(writer, compressionMode) : writer;
 
             try {
                 const splats = splatIdx === 'all' ? getSplats() : [getSplats()[splatIdx]];
 
                 switch (fileType) {
                     case 'ply':
-                        await serializePly(splats, serializeSettings, writer);
+                        await serializePly(splats, serializeSettings, activeWriter);
                         break;
                     case 'compressedPly':
                         serializeSettings.minOpacity = 1 / 255;
                         serializeSettings.removeInvalid = true;
-                        await serializePlyCompressed(splats, serializeSettings, writer);
+                        await serializePlyCompressed(splats, serializeSettings, activeWriter);
                         break;
                     case 'splat':
-                        await serializeSplat(splats, serializeSettings, writer);
+                        await serializeSplat(splats, serializeSettings, activeWriter);
                         break;
                     case 'htmlViewer':
                     case 'packageViewer':
-                        await serializeViewer(splats, serializeSettings, viewerExportSettings, writer);
+                        await serializeViewer(splats, serializeSettings, viewerExportSettings, activeWriter);
                         break;
                 }
             } finally {
-                await writer.close();
+                await activeWriter.close();
             }
 
         } catch (error) {

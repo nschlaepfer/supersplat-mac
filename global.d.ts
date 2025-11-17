@@ -15,4 +15,5 @@ declare module '*.scss' {
 
 declare interface Window {
     __SUPERSPLAT_COPILOT_URL?: string;
+    __supersplatPreview?: any;
 }

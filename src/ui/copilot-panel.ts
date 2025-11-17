@@ -1,9 +1,12 @@
 import { BooleanInput, Button, Container, Label, SelectInput, TextAreaInput, TextInput } from '@playcanvas/pcui';
+
 import { Events } from '../events';
 import { fetchModels, sendChat, type CopilotMessage } from '../services/copilot';
 import { Splat } from '../splat';
 
 const SETTINGS_KEY = 'supersplat.copilotSettings';
+const MACROS_KEY = 'supersplat.copilotMacros';
+const MAX_RECENT_ACTIONS = 10;
 
 const roleLabel = (role: string) => {
     switch (role) {
@@ -14,6 +17,10 @@ const roleLabel = (role: string) => {
         default: return role;
     }
 };
+
+type ModelTag = { id?: string, name?: string, model?: string };
+type MacroStep = { event: string; payload?: any; delayMs?: number };
+type Macro = { name: string; createdAt: string; steps: MacroStep[] };
 
 type CopilotSettings = {
     provider: 'ollama' | 'openai';
@@ -27,13 +34,11 @@ type CopilotSettings = {
 const DEFAULT_SETTINGS: CopilotSettings = {
     provider: 'ollama',
     openaiKey: '',
-    allowedTools: ['fireEvent', 'explainStep'],
+    allowedTools: ['fireEvent', 'explainStep', 'saveMacro', 'runMacro'],
     includeScreenshot: true,
     includeSceneSummary: true,
     preferredModels: {}
 };
-
-type ModelTag = { id?: string, name?: string, model?: string };
 
 class CopilotPanel extends Container {
     private events: Events;
@@ -51,15 +56,19 @@ class CopilotPanel extends Container {
     private screenshotToggle: BooleanInput;
     private sceneToggle: BooleanInput;
     private toolToggleMap: Record<string, BooleanInput> = {};
+    private macrosContainer: Container;
+    private macros: Macro[] = [];
+    private settings: CopilotSettings;
     private open = false;
     private showSettings = false;
-    private settings: CopilotSettings;
+    private recentActions: string[] = [];
 
     constructor(events: Events, canvas: HTMLCanvasElement) {
         super({ id: 'copilot-panel', class: 'copilot-panel hidden' });
         this.events = events;
         this.canvas = canvas;
         this.settings = this.loadSettings();
+        this.macros = this.loadMacros();
 
         this.statusLabel = new Label({ text: 'Connecting…', class: 'copilot-status' });
 
@@ -79,7 +88,7 @@ class CopilotPanel extends Container {
             this.updateSettingsVisibility();
         });
 
-        this.modelSelect = new SelectInput({ options: [], class: 'copilot-model-select' });
+        this.modelSelect = new SelectInput({ class: 'copilot-model-select', options: [] });
         this.modelSelect.on('change', (value: string) => {
             this.settings.preferredModels[this.settings.provider] = value;
             this.persistSettings();
@@ -103,16 +112,11 @@ class CopilotPanel extends Container {
 
         this.logEl = document.createElement('div');
         this.logEl.className = 'copilot-log';
-
         const logContainer = new Container({ class: 'copilot-log-container' });
         logContainer.dom.appendChild(this.logEl);
 
-        this.input = new TextAreaInput({
-            class: 'copilot-input',
-            placeholder: 'Ask how to clean up splats, change tools, or publish…'
-        });
+        this.input = new TextAreaInput({ class: 'copilot-input', placeholder: 'Ask how to clean up splats, change tools, or publish…' });
         this.input.dom?.setAttribute('rows', '3');
-
         this.input.on('change', () => {});
 
         this.sendBtn = new Button({ text: 'Send', class: 'copilot-send primary' });
@@ -135,6 +139,7 @@ class CopilotPanel extends Container {
         this.launcher.addEventListener('click', () => this.toggle());
 
         this.updateSettingsVisibility();
+        this.renderMacros();
         this.loadModels();
         this.updateSendAvailability();
     }
@@ -163,6 +168,21 @@ class CopilotPanel extends Container {
 
     private persistSettings() {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings));
+    }
+
+    private loadMacros(): Macro[] {
+        try {
+            const raw = localStorage.getItem(MACROS_KEY);
+            if (!raw) return [];
+            return JSON.parse(raw);
+        } catch (err) {
+            console.warn('Failed to parse macros', err);
+            return [];
+        }
+    }
+
+    private persistMacros() {
+        localStorage.setItem(MACROS_KEY, JSON.stringify(this.macros));
     }
 
     private toggle() {
@@ -222,7 +242,7 @@ class CopilotPanel extends Container {
         });
         panel.append(this.screenshotToggle);
 
-        this.sceneToggle = new BooleanInput({ label: 'Include current splat summary in prompts', value: this.settings.includeSceneSummary });
+        this.sceneToggle = new BooleanInput({ label: 'Include detailed splat summary', value: this.settings.includeSceneSummary });
         this.sceneToggle.on('change', (value: boolean) => {
             this.settings.includeSceneSummary = value;
             this.persistSettings();
@@ -231,10 +251,11 @@ class CopilotPanel extends Container {
 
         const toolset = new Container({ class: 'copilot-settings-row copilot-tool-row' });
         toolset.append(new Label({ text: 'Allowed tools' }));
-
         const toolOptions: Record<string, string> = {
             fireEvent: 'Fire SuperSplat events',
-            explainStep: 'Explain instructions'
+            explainStep: 'Explain instructions',
+            saveMacro: 'Save macros',
+            runMacro: 'Run macros'
         };
 
         Object.entries(toolOptions).forEach(([key, label]) => {
@@ -245,8 +266,18 @@ class CopilotPanel extends Container {
             this.toolToggleMap[key] = toggle;
             toolset.append(toggle);
         });
-
         panel.append(toolset);
+
+        const macroHeader = new Label({ text: 'Macros', class: 'copilot-macros-title' });
+        this.macrosContainer = new Container({ class: 'copilot-macros-list' });
+        const addMacroButton = new Button({ text: 'Add Macro', class: 'secondary' });
+        addMacroButton.on('click', () => this.promptAddMacro());
+
+        const macroWrapper = new Container({ class: 'copilot-settings-row copilot-macro-row' });
+        macroWrapper.append(macroHeader);
+        macroWrapper.append(addMacroButton);
+        macroWrapper.append(this.macrosContainer);
+        panel.append(macroWrapper);
 
         return panel;
     }
@@ -276,20 +307,20 @@ class CopilotPanel extends Container {
 
         try {
             const models: ModelTag[] = await fetchModels(this.settings.provider, { openaiKey: this.settings.openaiKey });
-            const opts = models.map(m => ({
+            const opts = models.map((m) => ({
                 v: m.model || m.name || m.id,
                 t: m.model || m.name || m.id
-            })).filter(opt => !!opt.v);
-            if (opts.length === 0) {
+            })).filter((opt) => !!opt.v);
+            if (!opts.length) {
                 this.modelSelect.options = [];
                 this.setStatus('No models found', false);
                 return;
             }
             this.modelSelect.options = opts;
             const preferred = this.settings.preferredModels[this.settings.provider];
-            const firstValue = preferred && opts.find(opt => opt.v === preferred) ? preferred : opts[0].v;
+            const defaultValue = preferred && opts.find((opt) => opt.v === preferred) ? preferred : opts[0].v;
             if (force || !this.modelSelect.value) {
-                this.modelSelect.value = firstValue;
+                this.modelSelect.value = defaultValue;
             }
             this.setStatus(`${this.settings.provider === 'openai' ? 'OpenAI' : 'Ollama'} ready`);
         } catch (err) {
@@ -320,7 +351,7 @@ class CopilotPanel extends Container {
         if (typeof rawContent === 'string') {
             this.log('assistant', rawContent);
         } else if (Array.isArray(rawContent)) {
-            const text = rawContent.map(part => part.text || part.type || part.image_url?.url).filter(Boolean).join('\n');
+            const text = rawContent.map((part) => part.text || part.type || part.image_url?.url).filter(Boolean).join('\n');
             if (text) {
                 this.log('assistant', text);
             }
@@ -345,19 +376,21 @@ class CopilotPanel extends Container {
         }
     }
 
-    private shouldAttachSceneSummary() {
-        return this.settings.includeSceneSummary;
-    }
-
     private buildSceneSummary() {
+        if (!this.settings.includeSceneSummary) {
+            return null;
+        }
         try {
             const splats = (this.events.invoke('scene.allSplats') as Splat[]) || [];
             if (!splats.length) {
                 return 'No splats loaded.';
             }
             return splats.map((splat, index) => {
-                const name = splat.name || `Splat ${index + 1}`;
-                return `${name} | gaussians=${splat.numSplats} | visible=${splat.visible ? 'yes' : 'no'}`;
+                const bound = splat.worldBound;
+                const dims = bound ? bound.halfExtents.clone().scale(2) : null;
+                const boundingText = bound && dims ? `size=(${dims.x.toFixed(2)}, ${dims.y.toFixed(2)}, ${dims.z.toFixed(2)}) center=(${bound.center.x.toFixed(2)}, ${bound.center.y.toFixed(2)}, ${bound.center.z.toFixed(2)})` : 'size=unknown';
+                const shBands = (splat.entity.gsplat?.instance?.resource as any)?.shBands ?? 3;
+                return `${index + 1}. ${splat.name} | gaussians=${splat.numSplats} | selected=${splat.numSelected} | locked=${splat.numLocked} | shBands=${shBands} | ${boundingText}`;
             }).join('\n');
         } catch (err) {
             console.warn('Unable to summarize scene', err);
@@ -370,6 +403,11 @@ class CopilotPanel extends Container {
         .filter(([, input]) => input.value)
         .map(([name]) => name);
         return enabled.length ? enabled : ['explainStep'];
+    }
+
+    private recordAction(action: string) {
+        this.recentActions.unshift(`${new Date().toLocaleTimeString()} - ${action}`);
+        this.recentActions = this.recentActions.slice(0, MAX_RECENT_ACTIONS);
     }
 
     private async submit() {
@@ -388,13 +426,20 @@ class CopilotPanel extends Container {
 
         try {
             const screenshot = this.shouldAttachScreenshot() ? this.captureScreenshot() : null;
-            const summary = this.shouldAttachSceneSummary() ? this.buildSceneSummary() : null;
+            const summary = this.buildSceneSummary();
+
             const context: Record<string, any> = {};
             if (screenshot) {
                 context.screenshot = screenshot;
             }
             if (summary) {
                 context.sceneSummary = summary;
+            }
+            if (this.macros.length) {
+                context.macros = this.macros.map((macro) => ({ name: macro.name, steps: macro.steps.length }));
+            }
+            if (this.recentActions.length) {
+                context.recentActions = this.recentActions.slice();
             }
 
             const response = await sendChat({
@@ -404,6 +449,7 @@ class CopilotPanel extends Container {
                 toolset: this.getEnabledTools(),
                 context
             }, this.settings.provider === 'openai' ? { openaiKey: this.settings.openaiKey } : undefined);
+
             const assistantMessage = response?.message;
             if (assistantMessage?.content) {
                 this.logAssistantMessage(assistantMessage.content);
@@ -432,10 +478,91 @@ class CopilotPanel extends Container {
             }
             if (name === 'fireEvent' && args?.event) {
                 this.events.fire(args.event, args.payload);
+                this.recordAction(`Fired ${args.event}`);
                 this.log('tool', `Fired event ${args.event}`);
             } else if (name === 'explainStep' && args?.message) {
                 this.log('assistant', args.message);
+            } else if (name === 'saveMacro' && args?.name && Array.isArray(args?.steps)) {
+                this.saveMacro(args.name, args.steps);
+            } else if (name === 'runMacro' && args?.name) {
+                this.runMacro(args.name);
             }
+        });
+    }
+
+    private promptAddMacro() {
+        const name = window.prompt('Macro name');
+        if (!name) {
+            return;
+        }
+        const eventsInput = window.prompt('Enter event IDs separated by commas (e.g., tool.denoise, select.all, publish.scene)');
+        if (!eventsInput) {
+            return;
+        }
+        const steps: MacroStep[] = eventsInput.split(',').map((token) => token.trim()).filter(Boolean).map((event) => ({ event }));
+        if (!steps.length) {
+            return;
+        }
+        this.saveMacro(name, steps);
+    }
+
+    private saveMacro(name: string, steps: MacroStep[]) {
+        const existingIndex = this.macros.findIndex((macro) => macro.name === name);
+        const macro = { name, createdAt: new Date().toISOString(), steps };
+        if (existingIndex >= 0) {
+            this.macros[existingIndex] = macro;
+        } else {
+            this.macros.push(macro);
+        }
+        this.persistMacros();
+        this.renderMacros();
+        this.recordAction(`Saved macro ${name}`);
+        this.log('system', `Macro "${name}" saved (${steps.length} steps).`);
+    }
+
+    private async runMacro(name: string) {
+        const macro = this.macros.find((m) => m.name === name);
+        if (!macro) {
+            this.log('system', `Macro "${name}" not found.`);
+            return;
+        }
+        this.log('system', `Running macro "${name}"...`);
+        for (const step of macro.steps) {
+            this.events.fire(step.event, step.payload);
+            if (step.delayMs) {
+                await new Promise((resolve) => setTimeout(resolve, step.delayMs));
+            }
+        }
+        this.recordAction(`Ran macro ${name}`);
+    }
+
+    private deleteMacro(name: string) {
+        this.macros = this.macros.filter((macro) => macro.name !== name);
+        this.persistMacros();
+        this.renderMacros();
+    }
+
+    private renderMacros() {
+        if (!this.macrosContainer) {
+            return;
+        }
+        while (this.macrosContainer.dom.firstChild) {
+            this.macrosContainer.dom.removeChild(this.macrosContainer.dom.firstChild);
+        }
+        if (!this.macros.length) {
+            this.macrosContainer.append(new Label({ text: 'No macros saved yet.' }));
+            return;
+        }
+        this.macros.forEach((macro) => {
+            const row = new Container({ class: 'copilot-macro-row-item' });
+            row.append(new Label({ text: `${macro.name} (${macro.steps.length} steps)`, class: 'copilot-macro-label' }));
+            const runBtn = new Button({ text: 'Run', class: 'secondary' });
+            runBtn.on('click', () => this.runMacro(macro.name));
+            const deleteBtn = new Button({ text: 'Delete', class: 'ghost' });
+            deleteBtn.on('click', () => this.deleteMacro(macro.name));
+            row.append(runBtn);
+            row.append(deleteBtn);
+            this.macrosContainer.append(row);
         });
     }
 
